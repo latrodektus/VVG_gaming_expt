@@ -11,6 +11,7 @@ library(ggplot2)
 library(knitr)
 library(plyr)
 library(tidyr)
+library(patchwork)
 ```
 
 Load the data (All_Experiments.csv).
@@ -47,54 +48,6 @@ data_rank = subset(data, study=="Rank_manipulation")
 data_faces = subset(data, study=="Face_choice")
 ```
 ---------------
-Adding in any functions
-
-Multiple plot function
-
-ggplot objects can be passed in ..., or to plotlist (as a list of ggplot objects)
-- cols:   Number of columns in layout
-- layout: A matrix specifying the layout. If present, 'cols' is ignored.
-If the layout is something like matrix(c(1,2,3,3), nrow=2, byrow=TRUE),
-then plot 1 will go in the upper left, 2 will go in the upper right, and
-3 will go all the way across the bottom.
-```{r}
-
-multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
-  library(grid)
-
-  # Make a list from the ... arguments and plotlist
-  plots <- c(list(...), plotlist)
-
-  numPlots = length(plots)
-
-  # If layout is NULL, then use 'cols' to determine layout
-  if (is.null(layout)) {
-    # Make the panel
-    # ncol: Number of columns of plots
-    # nrow: Number of rows needed, calculated from # of cols
-    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
-                    ncol = cols, nrow = ceiling(numPlots/cols))
-  }
-
- if (numPlots==1) {
-    print(plots[[1]])
-
-  } else {
-    # Set up the page
-    grid.newpage()
-    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
-
-    # Make each plot, in the correct location
-    for (i in 1:numPlots) {
-      # Get the i,j matrix positions of the regions that contain this subplot
-      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
-
-      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
-                                      layout.pos.col = matchidx$col))
-    }
-  }
-}
-```
 
 ---------------
 First, check the distributions of all the variables of interest
@@ -225,7 +178,7 @@ face_hist <- ggplot(data_faces, aes(x=Averagefrequencyviolence, fill=Sex)) +
         panel.border = element_blank(),
         panel.background = element_blank()) 
 
-multiplot(gaming_hist, rank_hist, face_hist, cols=1)
+
 ```
 
 Relationship between Age, Sex, and Exposure to violence:
@@ -260,159 +213,13 @@ summary(Perf, test="Chisq")
 ddply(data_gaming,~Sex,summarise,mean=mean(Selfscore),sd=sd(Selfscore), se=sd(Selfscore)/sqrt(length(Selfscore)))
 ddply(data_gaming,~VorNV,summarise,mean=mean(Selfscore),sd=sd(Selfscore), se=sd(Selfscore)/sqrt(length(Selfscore)))
 
-Figure1a <- ggplot(data_gaming, aes(x = Age, y = Selfscore, color = VorNV, shape = VorNV, linetype = VorNV)) + 
-  geom_point(size = 4) + 
-  scale_colour_hue(l=50, guide = FALSE) +
-  theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
-  xlab("Age") +
-  ylab("Self-rated perception of performance") +
-    theme(axis.line = element_line(colour = "black"),
-        axis.text=element_text(size=18),
-        axis.title=element_text(size=20,face="bold"),
-        axis.title.y=element_text(vjust=0.25),
-        axis.title.x=element_text(vjust=0.25),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        panel.background = element_blank()) 
-
-Figure1b <- ggplot(data_gaming, aes(x = Averagefrequencyviolence, y = Selfscore, color = Sex, shape = Sex, linetype = Sex)) + 
-  geom_point(size = 4) + 
-  scale_colour_hue(l=50, guide = FALSE) +
-  theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
-  xlab("Exposure to violence") +
-  ylab("Self-rated perception of performance") +
-    theme(axis.line = element_line(colour = "black"),
-        axis.text=element_text(size=18),
-        axis.title=element_text(size=20,face="bold"),
-        axis.title.y=element_text(vjust=0.25),
-        axis.title.x=element_text(vjust=0.25),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        panel.background = element_blank()) 
-
-ggplot(data_gaming, aes(x = Age, y = Selfscore, color = Sex, shape = Sex, linetype = Sex)) + 
-  geom_point(size = 4) + 
-  scale_colour_hue(l=50, guide = FALSE) +
-  theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
-  xlab("Age") +
-  ylab("Self-rated perception of performance") +
-    theme(axis.line = element_line(colour = "black"),
-        axis.text=element_text(size=18),
-        axis.title=element_text(size=20,face="bold"),
-        axis.title.y=element_text(vjust=0.25),
-        axis.title.x=element_text(vjust=0.25),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        panel.background = element_blank()) 
-
-multiplot (Figure1a, Figure1b, cols = 2)
-##Need to find some way to standardize the scores within game category
-##Nevermind...people lied with their scores so standardizing doesn't make a difference
 ```
 
 ##MANOVA
 ```{r}
-MANOVA_gaming<- manova(cbind(MV1Total, SGAAverage, SOIRTOTAL) ~ VorNV + Age + Sex + Selfscore + Averagefrequencyviolence +  VorNV*Selfscore + VorNV*Sex + Age*Sex, data=data_gaming)
+MANOVA_gaming<- manova(cbind(MV1Total, SGAAverage, SOIRTOTAL) ~ Age + Sex + VorNV + Averagefrequencyviolence + Selfscore +  VorNV*Selfscore + VorNV*Sex + Age*Sex, data=data_gaming)
 summary(MANOVA_gaming, test="Pillai")
 summary.aov(MANOVA_gaming)
-```
-
-Plotting Mate Value and Self-score
-```{r}
-Figure2 <- ggplot(data_gaming, aes(x = Selfscore, y = MV1Total, color = Sex, shape = Sex, linetype = Sex)) + 
-  geom_point(size = 4) + 
-  scale_colour_hue(l=50, guide = FALSE) +
-  theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
-  xlab("Self-rated perception of performance") +
-  ylab("Mate Value") +
-    theme(axis.line = element_line(colour = "black"),
-        axis.text=element_text(size=18),
-        axis.title=element_text(size=20,face="bold"),
-        axis.title.y=element_text(vjust=0.25),
-        axis.title.x=element_text(vjust=0.25),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        panel.background = element_blank()) 
-
-Figure2
-```
-
-Plotting SGAAverage and age
-```{r}
-ggplot(data_gaming, aes(x = Age, y = SGAAverage, color = Sex, shape = Sex, linetype = Sex)) + 
-  geom_point(size = 4) + 
-  scale_colour_hue(l=50, guide = FALSE) +
-  theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
-  xlab("Age") +
-  ylab("Sex Goal Activation") +
-    theme(axis.line = element_line(colour = "black"),
-        axis.text=element_text(size=18),
-        axis.title=element_text(size=20,face="bold"),
-        axis.title.y=element_text(vjust=0.25),
-        axis.title.x=element_text(vjust=0.25),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        panel.background = element_blank()) 
-
-
-```
-
-Plotting SOIRTOTAL with Violence and Self-score
-```{r}
-Figure3a <- ggplot(data_gaming, aes(x = Age, y = SOIRTOTAL, color = Sex, shape = Sex, linetype = Sex)) + 
-  geom_point(size = 4) + 
-  scale_colour_hue(l=50, guide = FALSE) +
-  theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
-  xlab("Age") +
-  ylab("Sociosexual Orientation Inventory") +
-    theme(axis.line = element_line(colour = "black"),
-        axis.text=element_text(size=18),
-        axis.title=element_text(size=20,face="bold"),
-        axis.title.y=element_text(vjust=0.25),
-        axis.title.x=element_text(vjust=0.25),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        panel.background = element_blank()) 
-
-Figure3b <- ggplot(data_gaming, aes(x = Selfscore, y = SOIRTOTAL, color = VorNV, shape = VorNV, linetype = VorNV)) + 
-  geom_point(size = 4) + 
-  scale_colour_hue(l=50, guide = FALSE) +
-  theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
-  xlab("Self-rated perception of performance") +
-  ylab("Sociosexual Orientation Inventory") +
-    theme(axis.line = element_line(colour = "black"),
-        axis.text=element_text(size=18),
-        axis.title=element_text(size=20,face="bold"),
-        axis.title.y=element_text(vjust=0.25),
-        axis.title.x=element_text(vjust=0.25),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        panel.background = element_blank()) 
-
-multiplot (Figure3a, Figure3b, cols = 2)
-
-ggplot(data_gaming, aes(x = Averagefrequencyviolence, y = SOIRTOTAL, color = VorNV, shape = VorNV, linetype = VorNV)) + 
-  geom_point(size = 4) + 
-  scale_colour_hue(l=50, guide = FALSE) +
-  theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
-  xlab("Exposure to violence") +
-  ylab("Sociosexual Orientation Inventory") +
-    theme(axis.line = element_line(colour = "black"),
-        axis.text=element_text(size=18),
-        axis.title=element_text(size=20,face="bold"),
-        axis.title.y=element_text(vjust=0.25),
-        axis.title.x=element_text(vjust=0.25),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        panel.background = element_blank()) 
 ```
 
 Experiment 2: Rank Manipulation
@@ -421,49 +228,16 @@ Experiment 2: Rank Manipulation
 Are self-scores correlated with the rank they are randomly given in the game
 
 ```{r}
-selfrank_corr <- lm(Selfscore  ~  Rank + Sex + VorNV + Age + Averagefrequencyviolence + Rank*Sex + Rank*VorNV, data = data_rank)
+selfrank_corr <- lm(Selfscore  ~  Age + Sex + VorNV + Averagefrequencyviolence + Rank + Age*VorNV + Sex*VorNV + Rank*Sex + Rank*VorNV, data = data_rank)
 anova(selfrank_corr, test="Chisq")
 
 ddply(data_rank, .(Sex), summarize, mean=mean(Selfscore), se=sd(Selfscore)/sqrt(length(Selfscore)))
 
-FigureS1a <- ggplot(data_rank, aes(x = Age, y = Selfscore, color = Sex, shape = Sex, linetype = Sex)) + 
-  geom_point(size = 4) + 
-  scale_colour_hue(l=50, guide = FALSE) +
-  theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
-  xlab("Age") +
-  ylab("Self-rated perception of performance") +
-    theme(axis.line = element_line(colour = "black"),
-        axis.text=element_text(size=18),
-        axis.title=element_text(size=20,face="bold"),
-        axis.title.y=element_text(vjust=0.25),
-        axis.title.x=element_text(vjust=0.25),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        panel.background = element_blank()) 
-
-FigureS1b <- ggplot(data_rank, aes(x = Averagefrequencyviolence, y = Selfscore, color = Sex, shape = Sex, linetype = Sex)) + 
-  geom_point(size = 4) + 
-  scale_colour_hue(l=50, guide = FALSE) +
-  theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
-  xlab("Exposure to violence") +
-  ylab("Self-rated perception of performance") +
-    theme(axis.line = element_line(colour = "black"),
-        axis.text=element_text(size=18),
-        axis.title=element_text(size=20,face="bold"),
-        axis.title.y=element_text(vjust=0.25),
-        axis.title.x=element_text(vjust=0.25),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        panel.background = element_blank()) 
-
-multiplot (FigureS1a, FigureS1b, cols = 2)
 ```
 
 ##MANOVA
 ```{r}
-MANOVA_rank<- manova(cbind(MV1Total, SGAAverage, SOIRTOTAL) ~ Rank + VorNV + Age + Sex + Selfscore + Averagefrequencyviolence + VorNV*Selfscore + VorNV*Rank + VorNV*Sex + Age*Sex, data=data_rank)
+MANOVA_rank<- manova(cbind(MV1Total, SGAAverage, SOIRTOTAL) ~ Age + Sex + VorNV + Averagefrequencyviolence + Selfscore + Rank + VorNV*Selfscore + VorNV*Sex + Age*Sex + VorNV*Rank, data=data_rank)
 
 summary(MANOVA_rank, test="Pillai")
 summary.aov(MANOVA_rank)
@@ -472,117 +246,6 @@ ddply(data_rank, .(Sex), summarize, mean=mean(SGAAverage), se=sd(SGAAverage)/sqr
 ddply(data_rank, .(Sex), summarize, mean=mean(SOIRTOTAL), se=sd(SOIRTOTAL)/sqrt(length(SOIRTOTAL)))
 
 ```
-
-```{r}
-FigureS4 <- ggplot(data_rank, aes(x = Selfscore, y = MV1Total, color = Sex, shape = Sex, linetype = Sex)) + 
-  geom_point(size = 4) + 
-  scale_colour_hue(l=50, guide = FALSE) +
-  theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
-  xlab("Selfscore") +
-  ylab("Mate Value") +
-    theme(axis.line = element_line(colour = "black"),
-        axis.text=element_text(size=18),
-        axis.title=element_text(size=20,face="bold"),
-        axis.title.y=element_text(vjust=0.25),
-        axis.title.x=element_text(vjust=0.25),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        panel.background = element_blank()) 
-
-ggplot(data_rank, aes(x = Rank, y = MV1Total)) + 
-  geom_point(size = 4) + 
-  scale_colour_hue(l=50, guide = FALSE) +
-  theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
-  xlab("Rank") +
-  ylab("Mate Value") +
-    theme(axis.line = element_line(colour = "black"),
-        axis.text=element_text(size=18),
-        axis.title=element_text(size=20,face="bold"),
-        axis.title.y=element_text(vjust=0.25),
-        axis.title.x=element_text(vjust=0.25),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        panel.background = element_blank()) 
-
-```
-
-Plotting SGAAverage and age and sex
-Then SGAverage and selfscore
-```{r}
-ggplot(data_rank, aes(x = Age, y = SGAAverage, color = Sex, shape = Sex, linetype = Sex)) + 
-  geom_point(size = 4) + 
-  scale_colour_hue(l=50, guide = FALSE) +
-  theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
-  xlab("Age") +
-  ylab("Sex Goal Activation") +
-    theme(axis.line = element_line(colour = "black"),
-        axis.text=element_text(size=18),
-        axis.title=element_text(size=20,face="bold"),
-        axis.title.y=element_text(vjust=0.25),
-        axis.title.x=element_text(vjust=0.25),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        panel.background = element_blank()) 
-
-ggplot(data_rank, aes(x = Selfscore, y = SGAAverage, color = Sex, shape = Sex, linetype = Sex)) + 
-  geom_point(size = 4) + 
-  scale_colour_hue(l=50, guide = FALSE) +
-  theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
-  xlab("Self-rated perception of performance") +
-  ylab("Sex Goal Activation") +
-    theme(axis.line = element_line(colour = "black"),
-        axis.text=element_text(size=18),
-        axis.title=element_text(size=20,face="bold"),
-        axis.title.y=element_text(vjust=0.25),
-        axis.title.x=element_text(vjust=0.25),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        panel.background = element_blank()) 
-
-ggplot(data_rank, aes(x = Averagefrequencyviolence, y = SGAAverage, color = Sex, shape = Sex, linetype = Sex)) + 
-  geom_point(size = 4) + 
-  scale_colour_hue(l=50, guide = FALSE) +
-  theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
-  xlab("Exposure to violence") +
-  ylab("Sex Goal Activation") +
-    theme(axis.line = element_line(colour = "black"),
-        axis.text=element_text(size=18),
-        axis.title=element_text(size=20,face="bold"),
-        axis.title.y=element_text(vjust=0.25),
-        axis.title.x=element_text(vjust=0.25),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        panel.background = element_blank()) 
-
-```
-
-Plotting SOIRTOTAL with Violence and Self-score
-```{r}
-ggplot(data_rank, aes(x = Rank, y = SOIRTOTAL, color = VorNV, shape = VorNV, linetype = VorNV)) + 
-  geom_point(size = 4) + 
-  scale_colour_hue(l=50, guide = FALSE) +
-  theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
-  xlab("Age") +
-  ylab("Sociosexual Orientation Inventory") +
-    theme(axis.line = element_line(colour = "black"),
-        axis.text=element_text(size=18),
-        axis.title=element_text(size=20,face="bold"),
-        axis.title.y=element_text(vjust=0.25),
-        axis.title.x=element_text(vjust=0.25),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        panel.background = element_blank()) 
-
-```
-
-
-
 
 
 Experiment 3: Face Choices
@@ -598,32 +261,18 @@ summary(Perf, test="Chisq")
 ddply(data_faces, .(Sex), summarize, mean=mean(Selfscore), se=sd(Selfscore)/sqrt(length(Selfscore)))
 ddply(data_faces, .(VorNV), summarize, mean=mean(Selfscore), se=sd(Selfscore)/sqrt(length(Selfscore)))
 
-FigureS3 <- ggplot(data_faces, aes(x = Age, y = Selfscore, color = Sex, shape = Sex, linetype = Sex)) + 
-  geom_point(size = 4) + 
-  scale_colour_hue(l=50, guide = FALSE) +
-  theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
-  xlab("Age") +
-  ylab("Self-rated perception of performance") +
-    theme(axis.line = element_line(colour = "black"),
-        axis.text=element_text(size=18),
-        axis.title=element_text(size=20,face="bold"),
-        axis.title.y=element_text(vjust=0.25),
-        axis.title.x=element_text(vjust=0.25),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        panel.background = element_blank()) 
+data_faces_fem = subset(data_faces, Sex=="Female")
+data_faces_mal = subset(data_faces, Sex=="Male")
 
-FigureS3
+ddply(data_faces_mal, .(VorNV), summarize, mean=mean(Selfscore), se=sd(Selfscore)/sqrt(length(Selfscore)))
 
-##Need to find some way to standardize the scores within game category
-##Nevermind...people lied with their scores so standardizing doesn't make a difference
 ```
 
 
 ##MANOVA
 ```{r}
-MANOVA_face<- manova(cbind(MV1Total, SGAAverage, SOIRTOTAL) ~ VorNV + Age + Sex + Selfscore + Averagefrequencyviolence +  VorNV*Selfscore + VorNV*Sex + Age*Sex, data=data_faces)
+MANOVA_face<- manova(cbind(MV1Total, SGAAverage, SOIRTOTAL) ~ Age + Sex + VorNV + Averagefrequencyviolence + Selfscore + VorNV*Selfscore + VorNV*Sex + Age*Sex, data=data_faces)
+
 summary(MANOVA_face, test="Pillai")
 summary.aov(MANOVA_face)
 
@@ -632,164 +281,391 @@ ddply(data_rank, .(Sex), summarize, mean=mean(SOIRTOTAL), se=sd(SOIRTOTAL)/sqrt(
 
 ```
 
-Plot Mate Value
-```{r}
-ggplot(data_faces, aes(x = Selfscore, y = MV1Total, color = Sex, shape = Sex, linetype = Sex)) + 
-  geom_point(size = 4) + 
-  scale_colour_hue(l=50, guide = FALSE) +
-  theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
-  xlab("Selfscore") +
-  ylab("Mate Value") +
-    theme(axis.line = element_line(colour = "black"),
-        axis.text=element_text(size=18),
-        axis.title=element_text(size=20,face="bold"),
-        axis.title.y=element_text(vjust=0.25),
-        axis.title.x=element_text(vjust=0.25),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        panel.background = element_blank()) 
-
-```
-
-Looking at SGA
-```{r}
-ggplot(data_faces, aes(x = Averagefrequencyviolence, y = SOIRTOTAL, color = Sex, shape = Sex, linetype = Sex)) + 
-  geom_point(size = 4) + 
-  scale_colour_hue(l=50, guide = FALSE) +
-  theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
-  xlab("Age") +
-  ylab("Sociosexual Orientation Inventory") +
-    theme(axis.line = element_line(colour = "black"),
-        axis.text=element_text(size=18),
-        axis.title=element_text(size=20,face="bold"),
-        axis.title.y=element_text(vjust=0.25),
-        axis.title.x=element_text(vjust=0.25),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        panel.background = element_blank()) 
-
-```
-
-
-```{r}
-ggplot(data_faces, aes(x = Age, y = SOIRTOTAL, color = Sex, shape = Sex, linetype = Sex)) + 
-  geom_point(size = 4) + 
-  scale_colour_hue(l=50, guide = FALSE) +
-  theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
-  xlab("Age") +
-  ylab("Sociosexual Orientation Inventory") +
-    theme(axis.line = element_line(colour = "black"),
-        axis.text=element_text(size=18),
-        axis.title=element_text(size=20,face="bold"),
-        axis.title.y=element_text(vjust=0.25),
-        axis.title.x=element_text(vjust=0.25),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        panel.background = element_blank()) 
-
-Figure4 <- ggplot(data_faces, aes(x=VorNV, y=SOIRTOTAL, fill=Sex)) + geom_violin() + 
-  xlab("Sex") +
-  ylab("Sociosexual Orientation Inventory") +
-  theme(axis.line = element_line(colour = "black"),
-        axis.text=element_text(size=18),
-        axis.title=element_text(size=20,face="bold"),
-        axis.title.y=element_text(vjust=0.25),
-        axis.title.x=element_text(vjust=0.25),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        panel.background = element_blank())
-
-Figure4
-```
 
 Short term faces: 
 
 ```{r}
-STselection <- lm(TotalSTScore ~  VorNV + Age + Sex + Selfscore + MV1Total + SGAAverage + SOIRTOTAL + Sex*Selfscore, data=data_faces)
+STselection <- lm(TotalSTScore ~  Age + Sex + VorNV + Averagefrequencyviolence + Selfscore + Sex*Selfscore, data=data_faces)
 
 anova(STselection)
 ```
 
-```{r}
-Figure5 <- ggplot(data_faces, aes(x = TotalSTScore, y = Selfscore, color = Sex, shape = Sex, linetype = Sex)) + 
-  geom_point(size = 4) + 
-  ylim(0,7.5) +
-  scale_colour_hue(l=50, guide = FALSE) +
-  scale_x_continuous(limits=c(0,7.5)) +
-  theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
-  xlab("Self-rated perception of performance") +
-  ylab("Short-term Facial Preference for masculinity") + 
-  theme(legend.position="right") +
-  theme(axis.line = element_line(colour = "black"),
-        axis.text=element_text(size=18),
-        axis.title=element_text(size=20,face="bold"),
-        axis.title.y=element_text(vjust=0.25),
-        axis.title.x=element_text(vjust=0.25),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        panel.background = element_blank()) 
-
-Figure5
-```
 
 ```{r}
-LTselection <- lm(TotalLTScore ~  VorNV + Age + Sex + Selfscore + MV1Total + SGAAverage + SOIRTOTAL + Sex*Selfscore, data=data_faces)
+LTselection <- lm(TotalLTScore ~  Age + Sex + VorNV + Averagefrequencyviolence + Selfscore + Sex*Selfscore, data=data_faces)
 
 anova(LTselection)
 ```
 
-LT Faces and age
+Figures
+-------
+
+Any figure with 3 panels is saved at 1400 width
+
+Figure 1: The relationship between the self-perception of a participant's performance and their age, separately for each sex in each experiment.
+
 ```{r}
-Figure6 <- ggplot(data_faces, aes(x = Age, y = TotalLTScore, color = Sex, shape = Sex, linetype = Sex)) + 
+Figure1a <- ggplot(data_gaming, aes(x = Age, y = Selfscore, color = Sex, shape = Sex, linetype = Sex)) + 
   geom_point(size = 4) + 
-  scale_colour_hue(l=50, guide = FALSE) +
+  scale_x_continuous(breaks=c(10,20,30,40,50,60,70), limits=c(15,75)) +
+  scale_y_continuous(breaks=c(1,2,3,4,5,6,7), limits=c(0.75,7)) +
+  scale_colour_hue(l=50) +
   theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
   xlab("Age") +
-  ylab("Long-term Facial Preference for masculinity") + 
-  theme(legend.position="right") +
-  theme(axis.line = element_line(colour = "black"),
+  ylab("Self-perceived performance") +
+  labs(title = "Experiment 1") +
+    theme(axis.line = element_line(colour = "black"),
+        legend.position="none",  
         axis.text=element_text(size=18),
         axis.title=element_text(size=20,face="bold"),
-        axis.title.y=element_text(vjust=0.25),
-        axis.title.x=element_text(vjust=0.25),
+        axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0)),
+        plot.title = element_text(hjust = 0.5, size = 22, face="bold"),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         panel.border = element_blank(),
         panel.background = element_blank()) 
 
-Figure6
-
-Figure7 <- ggplot(data_faces, aes(x = SOIRTOTAL, y = TotalLTScore, color = Sex, shape = Sex, linetype = Sex)) + 
+Figure1b <- ggplot(data_rank, aes(x = Age, y = Selfscore, color = Sex, shape = Sex, linetype = Sex)) + 
   geom_point(size = 4) + 
-  scale_colour_hue(l=50, guide = FALSE) +
+  scale_x_continuous(breaks=c(10,20,30,40,50,60,70), limits=c(15,75)) +
+  scale_y_continuous(breaks=c(1,2,3,4,5,6,7), limits=c(0.75,7)) +
+  scale_colour_hue(l=50) +
+  guides(fill=FALSE) + 
   theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
-  xlab("SOI") +
-  ylab("Long-term Facial Preference for masculinity") + 
-  theme(legend.position="right") +
-  theme(axis.line = element_line(colour = "black"),
+  xlab("Age") +
+  ylab("") +
+  labs(title = "Experiment 2") +
+    theme(axis.line = element_line(colour = "black"),
+        legend.position="none", 
         axis.text=element_text(size=18),
         axis.title=element_text(size=20,face="bold"),
-        axis.title.y=element_text(vjust=0.25),
-        axis.title.x=element_text(vjust=0.25),
+        axis.title.y = element_text(margin = margin(t = 0, r = -20, b = 0, l = 0)),
+        plot.title = element_text(hjust = 0.5, size = 22, face="bold"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank()) 
+
+Figure1c <- ggplot(data_faces, aes(x = Age, y = Selfscore, color = Sex, shape = Sex, linetype = Sex)) + 
+  geom_point(size = 4) + 
+  scale_x_continuous(breaks=c(10,20,30,40,50,60,70), limits=c(15,75)) +
+  scale_y_continuous(breaks=c(1,2,3,4,5,6,7), limits=c(0.75,7)) +
+  scale_colour_hue(l=50) +
+  theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
+  xlab("Age") +
+  ylab("") +
+  labs(title = "Experiment 3") +
+    theme(axis.line = element_line(colour = "black"), 
+        axis.text=element_text(size=18),
+        axis.title=element_text(size=20,face="bold"),
+        axis.title.y = element_text(margin = margin(t = 0, r = -20, b = 0, l = 0)),
+        plot.title = element_text(hjust = 0.5, size = 22, face="bold"),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         panel.border = element_blank(),
         panel.background = element_blank())
-Figure7
+
+Figure1a + Figure1b + Figure1c
 ```
------
 
 
+Figure 2: The self-perception of performance as a function of their treatment across all three experiments. 
+
+```{r}
+Figure2a <- ggplot(data_gaming, aes(x=VorNV, y=Selfscore)) + geom_violin(lwd=1) + 
+  xlab("") +
+  ylab("Self-perceived performance") +
+  scale_x_discrete(labels=c("NV" = "Non-Violent", "V" = "Violent")) +
+  scale_y_continuous(breaks=c(1,2,3,4,5,6,7), limits=c(0.75,7)) +
+  geom_boxplot(lwd=1, width=0.1) +
+  labs(title = "Experiment 1") +
+  theme(axis.line = element_line(colour = "black"),
+        axis.text=element_text(size=14),
+        axis.title=element_text(size=16,face="bold"),
+        axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0)),
+        plot.title = element_text(hjust = 0.5, size = 16, face="bold"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank())
+
+Figure2b <- ggplot(data_rank, aes(x=VorNV, y=Selfscore)) + geom_violin(lwd=1) + 
+  xlab("Game Treatment") +
+  ylab("") +
+  scale_x_discrete(labels=c("NV" = "Non-Violent", "V" = "Violent")) +
+  scale_y_continuous(breaks=c(1,2,3,4,5,6,7), limits=c(0.75,7)) +
+  geom_boxplot(lwd=1, width=0.1) +
+  labs(title = "Experiment 2") +
+  theme(axis.line = element_line(colour = "black"),
+        axis.text=element_text(size=14),
+        axis.title=element_text(size=16,face="bold"),
+        axis.title.y = element_text(margin = margin(t = 0, r = -20, b = 0, l = 0)),
+        plot.title = element_text(hjust = 0.5, size = 16, face="bold"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank()) 
+
+Figure2c <- ggplot(data_faces, aes(x=VorNV, y=Selfscore)) + geom_violin(lwd=1) + 
+  xlab("") +
+  ylab("") +
+  scale_x_discrete(labels=c("NV" = "Non-Violent", "V" = "Violent")) +
+  scale_y_continuous(breaks=c(1,2,3,4,5,6,7), limits=c(0.75,7)) +
+  geom_boxplot(lwd=1, width=0.1) +
+  labs(title = "Experiment 3") +
+  theme(axis.line = element_line(colour = "black"),
+        axis.text=element_text(size=14),
+        axis.title=element_text(size=16,face="bold"),
+        axis.title.y = element_text(margin = margin(t = 0, r = -20, b = 0, l = 0)),
+        plot.title = element_text(hjust = 0.5, size = 16, face="bold"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank()) 
+
+Figure2a + Figure2b + Figure2c
+```
+
+Figure 3: The relationship between the self-perception of a participant's performance and their exposure to violence, separately for each sex in each experiment.
+
+```{r}
+Figure3a <- ggplot(data_gaming, aes(x = Averagefrequencyviolence, y = Selfscore, color = Sex, shape = Sex, linetype = Sex)) + 
+  geom_point(size = 4) + 
+  scale_x_continuous(breaks=c(0,10,20,30,40,50), limits=c(0,50)) +
+  scale_y_continuous(breaks=c(1,2,3,4,5,6,7), limits=c(0.75,7)) +
+  scale_colour_hue(l=50) +
+  theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
+  xlab("") +
+  ylab("Self-perceived performance") +
+  labs(title = "Experiment 1") +
+    theme(axis.line = element_line(colour = "black"),
+        legend.position="none",  
+        axis.text=element_text(size=18),
+        axis.title=element_text(size=20,face="bold"),
+        axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0)),
+        plot.title = element_text(hjust = 0.5, size = 22, face="bold"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank()) 
+
+Figure3b <- ggplot(data_rank, aes(x = Averagefrequencyviolence, y = Selfscore, color = Sex, shape = Sex, linetype = Sex)) + 
+  geom_point(size = 4) + 
+  scale_x_continuous(breaks=c(0,10,20,30,40,50), limits=c(0,50)) +
+  scale_y_continuous(breaks=c(1,2,3,4,5,6,7), limits=c(0.75,7)) +
+  scale_colour_hue(l=50) +
+  guides(fill=FALSE) + 
+  theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
+  xlab("Exposure to violence") +
+  ylab("") +
+  labs(title = "Experiment 2") +
+    theme(axis.line = element_line(colour = "black"),
+        legend.position="none", 
+        axis.text=element_text(size=18),
+        axis.title=element_text(size=20,face="bold"),
+        axis.title.y = element_text(margin = margin(t = 0, r = -20, b = 0, l = 0)),
+        plot.title = element_text(hjust = 0.5, size = 22, face="bold"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank()) 
+
+Figure3c <- ggplot(data_faces, aes(x = Averagefrequencyviolence, y = Selfscore, color = Sex, shape = Sex, linetype = Sex)) + 
+  geom_point(size = 4) + 
+  scale_x_continuous(breaks=c(0,10,20,30,40,50), limits=c(0,50)) +
+  scale_y_continuous(breaks=c(1,2,3,4,5,6,7), limits=c(0.75,7)) +
+  scale_colour_hue(l=50) +
+  theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
+  xlab("") +
+  ylab("") +
+  labs(title = "Experiment 3") +
+    theme(axis.line = element_line(colour = "black"), 
+        axis.text=element_text(size=18),
+        axis.title=element_text(size=20,face="bold"),
+        axis.title.y = element_text(margin = margin(t = 0, r = -20, b = 0, l = 0)),
+        plot.title = element_text(hjust = 0.5, size = 22, face="bold"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank())
+
+Figure3a + Figure3b + Figure3c
+```
 
 
+Figure 4: The relationship between the self-perceived mate value and self-perception of a participant's performance, separately for each sex in each experiment.
+
+```{r}
+Figure4a <- ggplot(data_gaming, aes(x = Selfscore, y = MV1Total, color = Sex, shape = Sex, linetype = Sex)) + 
+  geom_point(size = 4) + 
+  scale_x_continuous(breaks=c(1,2,3,4,5,6,7), limits=c(0.75,7)) +
+  scale_y_continuous(breaks=c(0,5,10,15,20,25,30), limits=c(0,30)) +
+  scale_colour_hue(l=50) +
+  theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
+  xlab("") +
+  ylab("Self-perceived mate value") +
+  labs(title = "Experiment 1") +
+    theme(axis.line = element_line(colour = "black"),
+        legend.position="none",  
+        axis.text=element_text(size=18),
+        axis.title=element_text(size=20,face="bold"),
+        axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0)),
+        plot.title = element_text(hjust = 0.5, size = 22, face="bold"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank()) 
+
+Figure4b <- ggplot(data_rank, aes(x = Selfscore, y = MV1Total, color = Sex, shape = Sex, linetype = Sex)) + 
+  geom_point(size = 4) + 
+  scale_x_continuous(breaks=c(1,2,3,4,5,6,7), limits=c(0.75,7)) +
+  scale_y_continuous(breaks=c(0,5,10,15,20,25,30), limits=c(0,30)) +
+  scale_colour_hue(l=50) +
+  guides(fill=FALSE) + 
+  theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
+  xlab("Self-perceived performance") +
+  ylab("") +
+  labs(title = "Experiment 2") +
+    theme(axis.line = element_line(colour = "black"),
+        legend.position="none", 
+        axis.text=element_text(size=18),
+        axis.title=element_text(size=20,face="bold"),
+        axis.title.y = element_text(margin = margin(t = 0, r = -20, b = 0, l = 0)),
+        plot.title = element_text(hjust = 0.5, size = 22, face="bold"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank()) 
+
+Figure4c <- ggplot(data_faces, aes(x = Selfscore, y = MV1Total, color = Sex, shape = Sex, linetype = Sex)) + 
+  geom_point(size = 4) + 
+  scale_x_continuous(breaks=c(1,2,3,4,5,6,7), limits=c(0.75,7)) +
+  scale_y_continuous(breaks=c(0,5,10,15,20,25,30), limits=c(0,30)) +
+  scale_colour_hue(l=50) +
+  theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
+  xlab("") +
+  ylab("") +
+  labs(title = "Experiment 3") +
+    theme(axis.line = element_line(colour = "black"), 
+        axis.text=element_text(size=18),
+        axis.title=element_text(size=20,face="bold"),
+        axis.title.y = element_text(margin = margin(t = 0, r = -20, b = 0, l = 0)),
+        plot.title = element_text(hjust = 0.5, size = 22, face="bold"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank())
+
+Figure4a + Figure4b + Figure4c
+```
 
 
+Figure 5: The relationship between the Sociosexual Inventory and self-perception of a participant's performance, separately for each sex in each experiment.
 
+```{r}
+Figure5a <- ggplot(data_gaming, aes(x = Age, y = SOIRTOTAL, color = Sex, shape = Sex, linetype = Sex)) + 
+  geom_point(size = 4) + 
+  scale_x_continuous(breaks=c(10,20,30,40,50,60,70,80), limits=c(18,80)) +
+  scale_y_continuous(breaks=c(0,10,20,30,40,50,60,70,80), limits=c(5,85)) +
+  scale_colour_hue(l=50) +
+  theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
+  xlab("") +
+  ylab("Sociosexual Inventory") +
+  labs(title = "Experiment 1") +
+    theme(axis.line = element_line(colour = "black"),
+        legend.position="none",  
+        axis.text=element_text(size=18),
+        axis.title=element_text(size=20,face="bold"),
+        axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0)),
+        plot.title = element_text(hjust = 0.5, size = 22, face="bold"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank()) 
 
+Figure5b <- ggplot(data_rank, aes(x = Age, y = SOIRTOTAL, color = Sex, shape = Sex, linetype = Sex)) + 
+  geom_point(size = 4) + 
+  scale_x_continuous(breaks=c(10,20,30,40,50,60,70,80), limits=c(18,80)) +
+  scale_y_continuous(breaks=c(0,10,20,30,40,50,60,70,80), limits=c(5,85)) +
+  scale_colour_hue(l=50) +
+  guides(fill=FALSE) + 
+  theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
+  xlab("Self-perceived performance") +
+  ylab("") +
+  labs(title = "Experiment 2") +
+    theme(axis.line = element_line(colour = "black"),
+        legend.position="none", 
+        axis.text=element_text(size=18),
+        axis.title=element_text(size=20,face="bold"),
+        axis.title.y = element_text(margin = margin(t = 0, r = -20, b = 0, l = 0)),
+        plot.title = element_text(hjust = 0.5, size = 22, face="bold"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank()) 
 
+Figure5c <- ggplot(data_faces, aes(x = Age, y = SOIRTOTAL, color = Sex, shape = Sex, linetype = Sex)) + 
+  geom_point(size = 4) + 
+  scale_x_continuous(breaks=c(10,20,30,40,50,60,70,80), limits=c(18,80)) +
+  scale_y_continuous(breaks=c(0,10,20,30,40,50,60,70,80), limits=c(5,85)) +
+  scale_colour_hue(l=50) +
+  theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
+  xlab("") +
+  ylab("") +
+  labs(title = "Experiment 3") +
+    theme(axis.line = element_line(colour = "black"), 
+        axis.text=element_text(size=18),
+        axis.title=element_text(size=20,face="bold"),
+        axis.title.y = element_text(margin = margin(t = 0, r = -20, b = 0, l = 0)),
+        plot.title = element_text(hjust = 0.5, size = 22, face="bold"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank())
 
+Figure5a + Figure5b + Figure5c
+```
+
+Figure 6: 
+
+```{r}
+Figure6a <- ggplot(data_faces, aes(x = Selfscore, y = TotalSTScore, color = Sex, shape = Sex, linetype = Sex)) + 
+  geom_point(size = 4, position=position_dodge(width=0.3)) + 
+  scale_colour_hue(l=50) +
+  scale_x_continuous(breaks=c(0,1,2,3,4,5,6,7), limits=c(0,7)) +
+  scale_y_continuous(breaks=c(0,1,2,3,4,5,6), limits=c(0,6)) +
+  theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
+  xlab("Self-perceived performance") +
+  ylab("Preference for masculine faces") + 
+  labs(title = "Short-term") +
+  theme(axis.line = element_line(colour = "black"),
+        legend.position="none",
+        axis.text=element_text(size=16),
+        axis.title=element_text(size=20,face="bold"),
+        plot.title = element_text(hjust = 0.5, size = 22, face="bold"),
+        axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0)),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank()) 
+
+Figure6b <- ggplot(data_faces, aes(x = Age, y = TotalLTScore, color = Sex, shape = Sex, linetype = Sex)) + 
+  geom_point(size = 4) + 
+  scale_colour_hue(l=50) +
+  scale_x_continuous(breaks=c(10,20,30,40,50,60,70,80), limits=c(18,80)) +
+  scale_y_continuous(breaks=c(0,1,2,3,4,5,6), limits=c(0,6)) +
+  theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
+  xlab("Age") +
+  ylab("") + 
+  labs(title = "Long-term") +
+  theme(axis.line = element_line(color = "black"),
+        axis.text=element_text(size=16),
+        axis.title=element_text(size=20,face="bold"),
+        plot.title = element_text(hjust = 0.5, size = 22, face="bold"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank()) 
+
+Figure6a + Figure6b
+```
