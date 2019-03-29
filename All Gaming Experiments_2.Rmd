@@ -41,12 +41,32 @@ Remove individuals that have a relationship status of 'other' (13 individuals)
 data = subset(data, Relationshipstatus %in% c("Single", "In an open relationship/casually dating", "In a long-term monogamous relationship eg. married, partnered", "Recently single/divorced/separated"))
 ```
 
+
 Subset data into the three experiments
 ```{r}
 data_gaming = subset(data, study=="Gaming_manipulation")
 data_rank = subset(data, study=="Rank_manipulation")
 data_faces = subset(data, study=="Face_choice")
 ```
+
+Standardizing actual game performance for each game
+```{r}
+data_gaming <- transform(data_gaming, Score_norm = ave(as.numeric(Score), Gameplayed, FUN = scale))
+data_rank <- transform(data_gaming, Score_norm = ave(as.numeric(Score), Gameplayed, FUN = scale))
+data_faces <- transform(data_gaming, Score_norm = ave(as.numeric(Score), Gameplayed, FUN = scale))
+```
+
+```{r}
+Figure1a <- ggplot(data_gaming, aes(x = Score_norm, y = Selfscore, color = Sex, shape = Sex, linetype = Sex)) + 
+  geom_point(size = 4) + 
+  scale_colour_hue(l=50) +
+  theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
+  xlab("Age") +
+  ylab("Self-perceived performance") +
+  labs(title = "Experiment 1")
+
+```
+
 ---------------
 
 ---------------
@@ -206,7 +226,7 @@ Experiment 1: Gaming Manipulation
 Do men and women differ in how well they performed in the game in both self-rated (selfscore) and actual performance
 
 ```{r}
-Perf <- lm(Selfscore ~  Age + Sex + VorNV + Averagefrequencyviolence + Age*VorNV + Sex*VorNV, data = data_gaming)
+Perf <- lm(Score_norm ~   Sex * VorNV * Age, data = data_gaming)
 anova(Perf, test="Chisq")
 summary(Perf, test="Chisq")
 
@@ -217,7 +237,7 @@ ddply(data_gaming,~VorNV,summarise,mean=mean(Selfscore),sd=sd(Selfscore), se=sd(
 
 ##MANOVA
 ```{r}
-MANOVA_gaming<- manova(cbind(MV1Total, SGAAverage, SOIRTOTAL) ~ Age + Sex + VorNV + Averagefrequencyviolence + Selfscore +  VorNV*Selfscore + VorNV*Sex + Age*Sex, data=data_gaming)
+MANOVA_gaming<- manova(cbind(MV1Total, SGAAverage, SOIRTOTAL) ~ Age + Sex + VorNV + Averagefrequencyviolence + Selfscore + Score_norm +  VorNV*Selfscore + VorNV*Sex + Age*Sex + Sex*Selfscore, data=data_gaming)
 summary(MANOVA_gaming, test="Pillai")
 summary.aov(MANOVA_gaming)
 ```
@@ -237,7 +257,7 @@ ddply(data_rank, .(Sex), summarize, mean=mean(Selfscore), se=sd(Selfscore)/sqrt(
 
 ##MANOVA
 ```{r}
-MANOVA_rank<- manova(cbind(MV1Total, SGAAverage, SOIRTOTAL) ~ Age + Sex + VorNV + Averagefrequencyviolence + Selfscore + Rank + VorNV*Selfscore + VorNV*Sex + Age*Sex + VorNV*Rank, data=data_rank)
+MANOVA_rank<- manova(cbind(MV1Total, SGAAverage, SOIRTOTAL) ~ Age + Sex + VorNV + Averagefrequencyviolence + Selfscore + Rank + VorNV*Selfscore + VorNV*Sex + Age*Sex + VorNV*Rank + Sex*Selfscore, data=data_rank)
 
 summary(MANOVA_rank, test="Pillai")
 summary.aov(MANOVA_rank)
@@ -271,7 +291,7 @@ ddply(data_faces_mal, .(VorNV), summarize, mean=mean(Selfscore), se=sd(Selfscore
 
 ##MANOVA
 ```{r}
-MANOVA_face<- manova(cbind(MV1Total, SGAAverage, SOIRTOTAL) ~ Age + Sex + VorNV + Averagefrequencyviolence + Selfscore + VorNV*Selfscore + VorNV*Sex + Age*Sex, data=data_faces)
+MANOVA_face<- manova(cbind(MV1Total, SGAAverage, SOIRTOTAL) ~ Age + Sex + VorNV + Averagefrequencyviolence + Selfscore + VorNV*Selfscore + VorNV*Sex + Age*Sex + Sex*Selfscore, data=data_faces)
 
 summary(MANOVA_face, test="Pillai")
 summary.aov(MANOVA_face)
