@@ -10,9 +10,9 @@ First load the libraries that we are using
 library(ggplot2)
 library(knitr)
 library(plyr)
+library(tidyr)
 library(patchwork)
-library(mediation)
-library(stargazer)
+library(ggstance)
 ```
 
 Load the data (All_Experiments.csv).
@@ -42,42 +42,12 @@ Remove individuals that have a relationship status of 'other' (13 individuals)
 data = subset(data, Relationshipstatus %in% c("Single", "In an open relationship/casually dating", "In a long-term monogamous relationship eg. married, partnered", "Recently single/divorced/separated"))
 ```
 
-
 Subset data into the three experiments
 ```{r}
 data_gaming = subset(data, study=="Gaming_manipulation")
 data_rank = subset(data, study=="Rank_manipulation")
 data_faces = subset(data, study=="Face_choice")
 ```
-
-Standardizing actual game performance for each game
-```{r}
-data_gaming <- transform(data_gaming, Score_norm = ave(as.numeric(Score), Gameplayed, FUN = scale))
-data_rank <- transform(data_rank, Score_norm = ave(as.numeric(Score), Gameplayed, FUN = scale))
-data_faces <- transform(data_faces, Score_norm = ave(as.numeric(Score), Gameplayed, FUN = scale))
-```
-
-Standardising age
-```{r}
-data_gaming <- transform(data_gaming, Age_norm = ave(as.numeric(Age), FUN = scale))
-data_rank <- transform(data_rank, Age_norm = ave(as.numeric(Age), FUN = scale))
-data_faces <- transform(data_faces, Age_norm = ave(as.numeric(Age), FUN = scale))
-```
-
-Standardising average frequeny of violence
-```{r}
-data_gaming <- transform(data_gaming, Averagefrequencyviolence_norm = ave(as.numeric(Averagefrequencyviolence), FUN = scale))
-data_rank <- transform(data_rank, Averagefrequencyviolence_norm = ave(as.numeric(Averagefrequencyviolence), FUN = scale))
-data_faces <- transform(data_faces, Averagefrequencyviolence_norm = ave(as.numeric(Averagefrequencyviolence), FUN = scale))
-```
-
-Standardising selfscore
-```{r}
-data_gaming <- transform(data_gaming, Selfscore_norm = ave(as.numeric(Selfscore), FUN = scale))
-data_rank <- transform(data_rank, Selfscore_norm = ave(as.numeric(Selfscore), FUN = scale))
-data_faces <- transform(data_faces, Selfscore_norm = ave(as.numeric(Selfscore), FUN = scale))
-```
-
 ---------------
 
 ---------------
@@ -214,8 +184,8 @@ face_hist <- ggplot(data_faces, aes(x=Averagefrequencyviolence, fill=Sex)) +
 
 Relationship between Age, Sex, and Exposure to violence:
 ```{r}
-ggplot(data, aes(x = Age, y = Averagefrequencyviolence, color = Sex, shape = Sex, linetype = Sex)) + 
-  geom_point(size = 4) + 
+ggplot(data, aes(x = Age, y = Averagefrequencyviolence, color = Sex, linetype = Sex)) + 
+  geom_point(shape = 0, size = 4) + 
   scale_colour_hue(l=50, guide = FALSE) +
   theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
   xlab("Age") +
@@ -237,30 +207,25 @@ Experiment 1: Gaming Manipulation
 Do men and women differ in how well they performed in the game in both self-rated (selfscore) and actual performance
 
 ```{r}
-Perf1 <- lm(Selfscore  ~  Age_norm + Sex + VorNV + Averagefrequencyviolence_norm + Score_norm + Age_norm*VorNV + Sex*VorNV, data = data_gaming)
-anova(Perf1, test="Chisq")
-summary(Perf1)
+Perf <- lm(Selfscore ~  Age + Sex + VorNV + Averagefrequencyviolence + Age*VorNV + Sex*VorNV, data = data_gaming)
+anova(Perf, test="Chisq")
+summary(Perf, test="Chisq")
 
 ddply(data_gaming,~Sex,summarise,mean=mean(Selfscore),sd=sd(Selfscore), se=sd(Selfscore)/sqrt(length(Selfscore)))
 ddply(data_gaming,~VorNV,summarise,mean=mean(Selfscore),sd=sd(Selfscore), se=sd(Selfscore)/sqrt(length(Selfscore)))
 
 ```
 
+Effect sizes
+```{r}
+effect.size(data_gaming$Selfscore, data_gaming$, pooled = TRUE, conf.level = 0.95)
+```
+
 ##MANOVA
 ```{r}
-MANOVA_gaming<- manova(cbind(MV1Total, SGAAverage, SOIRTOTAL) ~ Age_norm + Sex + VorNV + Averagefrequencyviolence_norm + Selfscore_norm + Score_norm + VorNV*Selfscore + VorNV*Sex + Age_norm*Sex + Sex*Selfscore_norm, data=data_gaming)
+MANOVA_gaming<- manova(cbind(MV1Total, SGAAverage, SOIRTOTAL) ~ Age + Sex + VorNV + Averagefrequencyviolence + Selfscore +  VorNV*Selfscore + VorNV*Sex + Age*Sex, data=data_gaming)
 summary(MANOVA_gaming, test="Pillai")
 summary.aov(MANOVA_gaming)
-
-MV1 <- lm(MV1Total  ~  Age_norm + Sex + VorNV + Averagefrequencyviolence_norm + Selfscore_norm + Score_norm + VorNV*Selfscore_norm + VorNV*Sex + Age_norm*Sex + Sex*Selfscore_norm, data = data_gaming)
-anova(MV1)
-summary(MV1)
-
-SGA1 <- lm(SGAAverage  ~  Age_norm + Sex + VorNV + Averagefrequencyviolence_norm + Selfscore_norm + Score_norm + VorNV*Selfscore_norm + VorNV*Sex + Age_norm*Sex + Sex*Selfscore_norm, data = data_gaming)
-summary(SGA1)
-
-SOI1 <- lm(SOIRTOTAL  ~  Age_norm + Sex + VorNV + Averagefrequencyviolence_norm + Selfscore_norm + Score_norm + VorNV*Selfscore_norm + VorNV*Sex + Age_norm*Sex + Sex*Selfscore_norm, data = data_gaming)
-summary(SOI1)
 ```
 
 Experiment 2: Rank Manipulation
@@ -269,10 +234,8 @@ Experiment 2: Rank Manipulation
 Are self-scores correlated with the rank they are randomly given in the game
 
 ```{r}
-perf2 <- lm(Selfscore  ~  Age_norm + Sex + VorNV + Averagefrequencyviolence_norm + Score_norm + Rank + Age_norm*VorNV + Sex*VorNV + Rank*Sex + Rank*VorNV, data = data_rank)
-
-anova(perf2, test="Chisq")
-summary(perf2)
+selfrank_corr <- lm(Selfscore  ~  Age + Sex + VorNV + Averagefrequencyviolence + Rank + Age*VorNV + Sex*VorNV + Rank*Sex + Rank*VorNV, data = data_rank)
+anova(selfrank_corr, test="Chisq")
 
 ddply(data_rank, .(Sex), summarize, mean=mean(Selfscore), se=sd(Selfscore)/sqrt(length(Selfscore)))
 
@@ -280,20 +243,10 @@ ddply(data_rank, .(Sex), summarize, mean=mean(Selfscore), se=sd(Selfscore)/sqrt(
 
 ##MANOVA
 ```{r}
-MANOVA_rank<- manova(cbind(MV1Total, SGAAverage, SOIRTOTAL) ~ Age_norm + Sex + VorNV + Averagefrequencyviolence_norm + Selfscore_norm + Score_norm + Rank + VorNV*Selfscore_norm + VorNV*Sex + Age_norm*Sex + Sex*Selfscore_norm + VorNV*Rank, data=data_rank)
+MANOVA_rank<- manova(cbind(MV1Total, SGAAverage, SOIRTOTAL) ~ Age + Sex + VorNV + Averagefrequencyviolence + Selfscore + Rank + VorNV*Selfscore + VorNV*Sex + Age*Sex + VorNV*Rank, data=data_rank)
 
 summary(MANOVA_rank, test="Pillai")
 summary.aov(MANOVA_rank)
-
-
-MV2 <- lm(MV1Total  ~  Age_norm + Sex + VorNV + Averagefrequencyviolence_norm + Selfscore_norm + Score_norm + Rank + VorNV*Selfscore_norm + VorNV*Sex + Age_norm*Sex + Sex*Selfscore_norm + VorNV*Rank, data=data_rank)
-summary(MV2)
-
-SGA2 <- lm(SGAAverage  ~  Age_norm + Sex + VorNV + Averagefrequencyviolence_norm + Selfscore_norm + Score_norm + Rank + VorNV*Selfscore_norm + VorNV*Sex + Age_norm*Sex + Sex*Selfscore_norm + VorNV*Rank, data=data_rank)
-summary(SGA2)
-
-SOI2 <- lm(SOIRTOTAL  ~  Age_norm + Sex + VorNV + Averagefrequencyviolence_norm + Selfscore_norm + Score_norm + Rank + VorNV*Selfscore_norm + VorNV*Sex + Age_norm*Sex + Sex*Selfscore_norm + VorNV*Rank, data=data_rank)
-summary(SOI2)
 
 ddply(data_rank, .(Sex), summarize, mean=mean(SGAAverage), se=sd(SGAAverage)/sqrt(length(SGAAverage)))
 ddply(data_rank, .(Sex), summarize, mean=mean(SOIRTOTAL), se=sd(SOIRTOTAL)/sqrt(length(SOIRTOTAL)))
@@ -307,9 +260,9 @@ Experiment 3: Face Choices
 Do men and women differ in how well they performed in the game in both self-rated (selfscore) and actual performance
 
 ```{r}
-Perf3 <- lm(Selfscore ~  Age_norm + Sex + VorNV + Averagefrequencyviolence_norm + Score_norm + Age_norm*VorNV + Sex*VorNV, data = data_faces)
-anova(Perf3, test="Chisq")
-summary(Perf3, test="Chisq")
+Perf <- lm(Selfscore ~  Age + Sex + VorNV + Averagefrequencyviolence + Age*VorNV + Sex*VorNV, data = data_faces)
+anova(Perf, test="Chisq")
+summary(Perf, test="Chisq")
 
 ddply(data_faces, .(Sex), summarize, mean=mean(Selfscore), se=sd(Selfscore)/sqrt(length(Selfscore)))
 ddply(data_faces, .(VorNV), summarize, mean=mean(Selfscore), se=sd(Selfscore)/sqrt(length(Selfscore)))
@@ -324,19 +277,10 @@ ddply(data_faces_mal, .(VorNV), summarize, mean=mean(Selfscore), se=sd(Selfscore
 
 ##MANOVA
 ```{r}
-MANOVA_face<- manova(cbind(MV1Total, SGAAverage, SOIRTOTAL) ~ Age_norm + Sex + VorNV + Averagefrequencyviolence_norm + Selfscore_norm + Score_norm + VorNV*Selfscore_norm + VorNV*Sex + Age_norm*Sex + Sex*Selfscore_norm, data=data_faces)
+MANOVA_face<- manova(cbind(MV1Total, SGAAverage, SOIRTOTAL) ~ Age + Sex + VorNV + Averagefrequencyviolence + Selfscore + VorNV*Selfscore + VorNV*Sex + Age*Sex, data=data_faces)
 
 summary(MANOVA_face, test="Pillai")
 summary.aov(MANOVA_face)
-
-MV3 <- lm(MV1Total  ~  Age_norm + Sex + VorNV + Averagefrequencyviolence_norm + Selfscore_norm + Score_norm + VorNV*Selfscore_norm + VorNV*Sex + Age_norm*Sex + Sex*Selfscore_norm, data=data_faces)
-summary(MV3)
-
-SGA3 <- lm(SGAAverage  ~  Age_norm + Sex + VorNV + Averagefrequencyviolence_norm + Selfscore_norm + Score_norm + VorNV*Selfscore_norm + VorNV*Sex + Age_norm*Sex + Sex*Selfscore_norm, data=data_faces)
-summary(SGA3)
-
-SOI3 <- lm(SOIRTOTAL  ~  Age_norm + Sex + VorNV + Averagefrequencyviolence_norm + Selfscore_norm + Score_norm + VorNV*Selfscore_norm + VorNV*Sex + Age_norm*Sex + Sex*Selfscore_norm, data=data_faces)
-summary(SOI3)
 
 ddply(data_rank, .(Sex), summarize, mean=mean(MV1Total), se=sd(MV1Total)/sqrt(length(MV1Total)))
 ddply(data_rank, .(Sex), summarize, mean=mean(SOIRTOTAL), se=sd(SOIRTOTAL)/sqrt(length(SOIRTOTAL)))
@@ -347,82 +291,33 @@ ddply(data_rank, .(Sex), summarize, mean=mean(SOIRTOTAL), se=sd(SOIRTOTAL)/sqrt(
 Short term faces: 
 
 ```{r}
-STselection <- lm(TotalSTScore ~  Age + Sex + VorNV + Averagefrequencyviolence_norm + Selfscore_norm + Sex*Selfscore_norm, data=data_faces)
+STselection <- lm(TotalSTScore ~  Age + Sex + VorNV + Averagefrequencyviolence + Selfscore + Sex*Selfscore, data=data_faces)
 
 anova(STselection)
-summary(STselection)
 ```
 
 
 ```{r}
-LTselection <- lm(TotalLTScore ~  Age + Sex + VorNV + Averagefrequencyviolence_norm + Selfscore_norm + Sex*Selfscore_norm, data=data_faces)
+LTselection <- lm(TotalLTScore ~  Age + Sex + VorNV + Averagefrequencyviolence + Selfscore + Sex*Selfscore, data=data_faces)
 
 anova(LTselection)
-summary(LTselection)
 ```
-
-Mediation Analysis:
-
-```{r}
-b.contT <- lm(Selfscore ~ Sex + Age + VorNV + Averagefrequencyviolence, data=data_faces)
-c.contT <- lm(TotalSTScore ~ Sex + Selfscore + Age + VorNV + Averagefrequencyviolence, data=data_faces)
-contcont.cont <- mediate(b.contT, c.contT, sims=50, 
-                    treat="Sex", mediator="Selfscore",
-                    treat.value = 2, control.value = -2)
-summary(contcont.cont)
-plot(contcont.cont)
-```
-
-
-
-Step 1: The effect of self-perceived performance on preference for masculine faces in men and women
-```{r}
-fit <- lm(TotalSTScore ~  Sex, data=data_faces)
-fita <- lm(Selfscore ~ Sex, data=data_faces)
-fitb <- lm(TotalSTScore ~ Selfscore + Sex, data=data_faces)
-fitc <- glm(Sex ~ TotalSTScore, family="binomial", data=data_faces)
-
-summary(fitc)
-summary(Mediation1male)
-
-stargazer(fit, fita, fitb, fitc, type = "text", title = "Baron and Kenny Method")
-```
-
-Step 2: The effect of self-perceived performance on preference for masculine faces in men and women
-```{r}
-Mediation2female <- lm(MV1Total ~  Age + VorNV + Averagefrequencyviolence + Selfscore, data=subset(data_faces, Sex=="Female"))
-Mediation2male <- lm(MV1Total ~  Selfscore, data=subset(data_faces, Sex=="Male"))
-
-summary(Mediation2female)
-summary(Mediation2male)
-```
-
-
-Step 3: The effect of self-perceived performance on preference for masculine faces in men and women
-```{r}
-Mediation3female <- lm(TotalSTScore ~  Selfscore + MV1Total, data=subset(data_faces, Sex=="Female"))
-Mediation3male <- lm(TotalSTScore ~  Selfscore + MV1Total, data=subset(data_faces, Sex=="Male"))
-
-summary(Mediation3female)
-summary(Mediation3male)
-```
-
 
 Figures
 -------
 
 Any figure with 3 panels is saved at 1400 width
 
-Figure 1: The relationship between the self-perception of a participant's performance and their actual performance using normalised scores (z-scores) to allow comparison between games.
+Figure 1: The relationship between the self-perception of a participant's performance and their age, separately for each sex in each experiment.
 
 ```{r}
-Figure1a <- ggplot(data_gaming, aes(x = Score_norm, y = Selfscore, color = Sex, shape = Sex, linetype = Sex)) + 
+Figure1a <- ggplot(data_gaming, aes(x = Age, y = Selfscore, color = Sex, shape = Sex, linetype = Sex)) + 
   geom_point(position=ggstance::position_dodgev(height=0.3), size = 4) + 
-  scale_x_continuous(breaks=c(-2,-1,0,1,2), limits=c(-2.1,2.1)) +
+  scale_x_continuous(breaks=c(10,20,30,40,50,60,70), limits=c(15,75)) +
   scale_y_continuous(breaks=c(1,2,3,4,5,6,7), limits=c(0.75,7)) +
   scale_colour_hue(l=50) +
   theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
-  xlab("") +
+  xlab("Age") +
   ylab("Self-perceived performance") +
   labs(title = "Experiment 1") +
     theme(axis.line = element_line(colour = "black"),
@@ -436,15 +331,14 @@ Figure1a <- ggplot(data_gaming, aes(x = Score_norm, y = Selfscore, color = Sex, 
         panel.border = element_blank(),
         panel.background = element_blank()) 
 
-
-Figure1b <- ggplot(data_rank, aes(x = Score_norm, y = Selfscore, color = Sex, shape = Sex, linetype = Sex)) + 
+Figure1b <- ggplot(data_rank, aes(x = Age, y = Selfscore, color = Sex, shape = Sex, linetype = Sex)) + 
   geom_point(position=ggstance::position_dodgev(height=0.3), size = 4) + 
-  scale_x_continuous(breaks=c(-2,-1,0,1,2), limits=c(-2.1,2.1)) +
+  scale_x_continuous(breaks=c(10,20,30,40,50,60,70), limits=c(15,75)) +
   scale_y_continuous(breaks=c(1,2,3,4,5,6,7), limits=c(0.75,7)) +
   scale_colour_hue(l=50) +
   guides(fill=FALSE) + 
   theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
-  xlab("Actual Performance") +
+  xlab("Age") +
   ylab("") +
   labs(title = "Experiment 2") +
     theme(axis.line = element_line(colour = "black"),
@@ -458,13 +352,13 @@ Figure1b <- ggplot(data_rank, aes(x = Score_norm, y = Selfscore, color = Sex, sh
         panel.border = element_blank(),
         panel.background = element_blank()) 
 
-Figure1c <- ggplot(data_faces, aes(x = Score_norm, y = Selfscore, color = Sex, shape = Sex, linetype = Sex)) + 
+Figure1c <- ggplot(data_faces, aes(x = Age, y = Selfscore, color = Sex, shape = Sex, linetype = Sex)) + 
   geom_point(position=ggstance::position_dodgev(height=0.3), size = 4) + 
-  scale_x_continuous(breaks=c(-2,-1,0,1,2), limits=c(-2.1,2.1)) +
+  scale_x_continuous(breaks=c(10,20,30,40,50,60,70), limits=c(15,75)) +
   scale_y_continuous(breaks=c(1,2,3,4,5,6,7), limits=c(0.75,7)) +
   scale_colour_hue(l=50) +
   theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
-  xlab("") +
+  xlab("Age") +
   ylab("") +
   labs(title = "Experiment 3") +
     theme(axis.line = element_line(colour = "black"), 
@@ -478,7 +372,6 @@ Figure1c <- ggplot(data_faces, aes(x = Score_norm, y = Selfscore, color = Sex, s
         panel.background = element_blank())
 
 Figure1a + Figure1b + Figure1c
-
 ```
 
 
@@ -569,7 +462,7 @@ Figure3b <- ggplot(data_rank, aes(x = Averagefrequencyviolence, y = Selfscore, c
   scale_colour_hue(l=50) +
   guides(fill=FALSE) + 
   theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
-  xlab("Age") +
+  xlab("Exposure to violence") +
   ylab("") +
   labs(title = "Experiment 2") +
     theme(axis.line = element_line(colour = "black"),
@@ -739,7 +632,7 @@ Figure5c <- ggplot(data_faces, aes(x = Age, y = SOIRTOTAL, color = Sex, shape = 
 Figure5a + Figure5b + Figure5c
 ```
 
-Figure 6: The relationship between the preference for masculine faces and self-perceived performance when looking for a short-term partner, and age when looking for a long-term partner, separately for each sex.
+Figure 6: 
 
 ```{r}
 Figure6a <- ggplot(data_faces, aes(x = Selfscore, y = TotalSTScore, color = Sex, shape = Sex, linetype = Sex)) + 
@@ -782,75 +675,3 @@ Figure6b <- ggplot(data_faces, aes(x = Age, y = TotalLTScore, color = Sex, shape
 
 Figure6a + Figure6b
 ```
-
-
-
--------------------------
-Extra Figures
-
-Figure 1: The relationship between the self-perception of a participant's performance and their age, separately for each sex in each experiment.
-
-```{r}
-Figure1a <- ggplot(data_gaming, aes(x = Age, y = Selfscore, color = Sex, shape = Sex, linetype = Sex)) + 
-  geom_point(size = 4) + 
-  scale_x_continuous(breaks=c(10,20,30,40,50,60,70), limits=c(15,75)) +
-  scale_y_continuous(breaks=c(1,2,3,4,5,6,7), limits=c(0.75,7)) +
-  scale_colour_hue(l=50) +
-  theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
-  xlab("Age") +
-  ylab("Self-perceived performance") +
-  labs(title = "Experiment 1") +
-    theme(axis.line = element_line(colour = "black"),
-        legend.position="none",  
-        axis.text=element_text(size=18),
-        axis.title=element_text(size=20,face="bold"),
-        axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0)),
-        plot.title = element_text(hjust = 0.5, size = 22, face="bold"),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        panel.background = element_blank()) 
-
-Figure1b <- ggplot(data_rank, aes(x = Age, y = Selfscore, color = Sex, shape = Sex, linetype = Sex)) + 
-  geom_point(size = 4) + 
-  scale_x_continuous(breaks=c(10,20,30,40,50,60,70), limits=c(15,75)) +
-  scale_y_continuous(breaks=c(1,2,3,4,5,6,7), limits=c(0.75,7)) +
-  scale_colour_hue(l=50) +
-  guides(fill=FALSE) + 
-  theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
-  xlab("Age") +
-  ylab("") +
-  labs(title = "Experiment 2") +
-    theme(axis.line = element_line(colour = "black"),
-        legend.position="none", 
-        axis.text=element_text(size=18),
-        axis.title=element_text(size=20,face="bold"),
-        axis.title.y = element_text(margin = margin(t = 0, r = -20, b = 0, l = 0)),
-        plot.title = element_text(hjust = 0.5, size = 22, face="bold"),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        panel.background = element_blank()) 
-
-Figure1c <- ggplot(data_faces, aes(x = Age, y = Selfscore, color = Sex, shape = Sex, linetype = Sex)) + 
-  geom_point(size = 4) + 
-  scale_x_continuous(breaks=c(10,20,30,40,50,60,70), limits=c(15,75)) +
-  scale_y_continuous(breaks=c(1,2,3,4,5,6,7), limits=c(0.75,7)) +
-  scale_colour_hue(l=50) +
-  theme_bw() + geom_smooth(method=lm,  fullrange=T) + 
-  xlab("Age") +
-  ylab("") +
-  labs(title = "Experiment 3") +
-    theme(axis.line = element_line(colour = "black"), 
-        axis.text=element_text(size=18),
-        axis.title=element_text(size=20,face="bold"),
-        axis.title.y = element_text(margin = margin(t = 0, r = -20, b = 0, l = 0)),
-        plot.title = element_text(hjust = 0.5, size = 22, face="bold"),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        panel.background = element_blank())
-
-Figure1a + Figure1b + Figure1c
-```
-
